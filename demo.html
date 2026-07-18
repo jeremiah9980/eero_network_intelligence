@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>eero Presence Intelligence — Snapshot</title>
+<title>eero Presence Intelligence</title>
 <style>
   :root{
+    color-scheme: light;
     --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f0efec;
     --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --border:rgba(11,11,11,0.10);
@@ -14,6 +15,7 @@
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
       --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
       --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --border:rgba(255,255,255,0.10);
@@ -22,6 +24,7 @@
     }
   }
   :root[data-theme="dark"]{
+    color-scheme: dark;
     --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
     --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --border:rgba(255,255,255,0.10);
@@ -35,8 +38,9 @@
   h1{font-size:20px;margin:0;font-weight:650}
   h2{font-size:12.5px;margin:0 0 10px;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
   .sub{color:var(--muted);font-size:13px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px;vertical-align:baseline}
+  .dot.live{background:var(--good)}
   .note{color:var(--ink-2);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin:12px 0 18px}
-  .note code{background:var(--surface-2);border-radius:5px;padding:1px 6px;font-size:12px}
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
   .tile .v{font-size:26px;font-weight:650;margin-top:2px}
@@ -73,7 +77,7 @@
   .timeline li:last-child{border-bottom:none}
   .timeline .t{color:var(--muted);font-size:12px;min-width:72px}
   .chart{display:flex;align-items:flex-end;gap:2px;height:64px;padding-top:6px}
-  .chart .bar{flex:1;min-width:4px;background:var(--accent);border-radius:4px 4px 0 0;position:relative}
+  .chart .bar{flex:1;min-width:4px;background:var(--accent);border-radius:4px 4px 0 0}
   .chart .bar.zero{background:var(--grid);height:2px !important}
   .chart .bar:hover{background:var(--accent-soft)}
   .axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:6px}
@@ -82,14 +86,13 @@
 </style>
 </head>
 <body>
-
 <div class="wrap">
 <header>
   <h1>eero Presence Intelligence</h1>
   <span class="sub" id="net"></span>
-  <span class="sub">snapshot · 2026-07-18 19:39 UTC</span>
+  <span class="sub"><span class="dot" id="modedot"></span><span id="modetext">connecting…</span></span>
 </header>
-<div class="note">Static snapshot captured from the platform running in the build sandbox (demo data via the fake adapter). For the always-live version, run <code>docker compose up -d</code> from the repo — the bundled Cloudflare Tunnel service publishes it at your own URL, with WebSocket updates and Slack alerts active.</div>
+<div class="note" id="note">Connecting to the live platform…</div>
 
 <div class="tiles">
   <div class="tile"><div class="l">Devices Online</div><div class="v num" id="t_online"></div><div class="d" id="t_total"></div></div>
@@ -115,7 +118,7 @@
 <div class="card">
   <h2>Presence activity — events per hour, last 24h</h2>
   <div class="chart" id="chart"></div>
-  <div class="axis"><span id="ax0"></span><span>snapshot time</span></div>
+  <div class="axis"><span id="ax0"></span><span id="ax1">now</span></div>
 </div>
 
 <div class="cols">
@@ -128,12 +131,19 @@
   <table id="devices"></table>
 </div>
 
-<footer>eero Presence Intelligence Platform v2 · jeremiah9980/eero · times shown in your local timezone</footer>
+<footer>eero Presence Intelligence Platform v2 · jeremiah9980/eero_network_intelligence · times shown in your local timezone</footer>
 </div>
 
 <script>
-const DB = {"network":"Sf","presence":{"persons":{"Cooper":true,"Jeremiah":true,"Myles":false},"people_home":2,"devices_online":4,"devices_total":5,"home":[{"name":"PS4-5654B9","mac":"40:99:22:9c:be:ab","person":null,"gateway":"Bedroom","rssi":-63,"ip":"192.168.4.60","online_since":1784402009,"duration":"26m"},{"name":"Cooper iPhone","mac":"a6:4c:c9:b6:9c:c0","person":"Cooper","gateway":"Hallway","rssi":-58,"ip":"192.168.4.31","online_since":1784402032,"duration":"25m"},{"name":"Unknown-Android","mac":"de:ad:be:ef:00:42","person":null,"gateway":"Garage","rssi":-77,"ip":"192.168.4.199","online_since":1784402032,"duration":"25m"},{"name":"Jere iPhone","mac":"72:c0:e8:62:51:50","person":"Jeremiah","gateway":"Living Room","rssi":-51,"ip":"192.168.4.23","online_since":1784402087,"duration":"24m"}]},"cards":{"devices_online":4,"devices_total":5,"people_home":2,"people_total":3,"last_poll":{"id":9,"started_ts":1784403381,"finished_ts":1784403381,"duration_ms":16,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},"poll_interval":300,"alerts_24h":4,"alerts_by_severity_24h":{"notice":3,"warning":1},"events_24h":6,"slack_configured":true},"arrivals":[{"id":6,"ts":1784402087,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","ip":"192.168.4.23","network_id":null,"signal":"-51","profile":"Jeremiah","detail":{"ts":1784402087,"type":"ARRIVED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah arrived home (Jere iPhone)"}},{"id":2,"ts":1784402032,"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","ip":"192.168.4.199","network_id":null,"signal":"-77","profile":null,"detail":{"ts":1784402032,"type":"ONLINE","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","person":null,"ip":"192.168.4.199","gateway":"Garage","rssi":-77,"profile":null,"network_id":null,"is_new":true,"severity":"warning","notify":true,"title":"Unknown device joined the network: Unknown-Android"}},{"id":1,"ts":1784402032,"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","ip":"192.168.4.31","network_id":null,"signal":"-58","profile":"Cooper","detail":{"ts":1784402032,"type":"ARRIVED","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","person":"Cooper","ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"profile":"Cooper","network_id":null,"is_new":true,"severity":"notice","notify":true,"title":"New device for Cooper: Cooper iPhone"}}],"departures":[{"id":5,"ts":1784402036,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402036,"type":"LEFT","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah left home (Jere iPhone)","session_seconds":27,"last_seen_ts":1784402034}},{"id":4,"ts":1784402034,"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","event":"OFFLINE","ip":"192.168.4.10","network_id":null,"signal":"-40","profile":null,"detail":{"ts":1784402034,"type":"OFFLINE","mac":"aa:bb:cc:00:11:22","name":"Samsung TV","person":null,"ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"profile":null,"network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Samsung TV went offline","session_seconds":25,"last_seen_ts":1784402009}}],"timeline":[{"id":6,"ts":1784402087,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","ip":"192.168.4.23","network_id":null,"signal":"-51","profile":"Jeremiah","detail":{"ts":1784402087,"type":"ARRIVED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah arrived home (Jere iPhone)"}},{"id":5,"ts":1784402036,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402036,"type":"LEFT","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah left home (Jere iPhone)","session_seconds":27,"last_seen_ts":1784402034}},{"id":4,"ts":1784402034,"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","event":"OFFLINE","ip":"192.168.4.10","network_id":null,"signal":"-40","profile":null,"detail":{"ts":1784402034,"type":"OFFLINE","mac":"aa:bb:cc:00:11:22","name":"Samsung TV","person":null,"ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"profile":null,"network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Samsung TV went offline","session_seconds":25,"last_seen_ts":1784402009}},{"id":3,"ts":1784402034,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ROAMED","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402034,"type":"ROAMED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Jere iPhone roamed Living Room → Bedroom","from_gateway":"Living Room","to_gateway":"Bedroom"}},{"id":2,"ts":1784402032,"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","ip":"192.168.4.199","network_id":null,"signal":"-77","profile":null,"detail":{"ts":1784402032,"type":"ONLINE","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","person":null,"ip":"192.168.4.199","gateway":"Garage","rssi":-77,"profile":null,"network_id":null,"is_new":true,"severity":"warning","notify":true,"title":"Unknown device joined the network: Unknown-Android"}},{"id":1,"ts":1784402032,"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","ip":"192.168.4.31","network_id":null,"signal":"-58","profile":"Cooper","detail":{"ts":1784402032,"type":"ARRIVED","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","person":"Cooper","ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"profile":"Cooper","network_id":null,"is_new":true,"severity":"notice","notify":true,"title":"New device for Cooper: Cooper iPhone"}}],"alerts":[{"id":4,"ts":1784402087,"severity":"notice","title":"Jeremiah arrived home (Jere iPhone)","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","notified":1,"raw":"{\"ts\": 1784402087, \"type\": \"ARRIVED\", \"mac\": \"72:c0:e8:62:51:50\", \"name\": \"Jere iPhone\", \"person\": \"Jeremiah\", \"ip\": \"192.168.4.23\", \"gateway\": \"Living Room\", \"rssi\": -51, \"profile\": \"Jeremiah\", \"network_id\": null, \"is_new\": false, \"severity\": \"notice\", \"notify\": true, \"title\": \"Jeremiah arrived home (Jere iPhone)\"}"},{"id":3,"ts":1784402036,"severity":"notice","title":"Jeremiah left home (Jere iPhone)","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","notified":1,"raw":"{\"ts\": 1784402036, \"type\": \"LEFT\", \"mac\": \"72:c0:e8:62:51:50\", \"name\": \"Jere iPhone\", \"person\": \"Jeremiah\", \"ip\": \"192.168.4.23\", \"gateway\": \"Bedroom\", \"rssi\": -60, \"profile\": \"Jeremiah\", \"network_id\": null, \"is_new\": false, \"severity\": \"notice\", \"notify\": true, \"title\": \"Jeremiah left home (Jere iPhone)\", \"session_seconds\": 27, \"last_seen_ts\": 1784402034}"},{"id":2,"ts":1784402032,"severity":"warning","title":"Unknown device joined the network: Unknown-Android","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","notified":1,"raw":"{\"ts\": 1784402032, \"type\": \"ONLINE\", \"mac\": \"de:ad:be:ef:00:42\", \"name\": \"Unknown-Android\", \"person\": null, \"ip\": \"192.168.4.199\", \"gateway\": \"Garage\", \"rssi\": -77, \"profile\": null, \"network_id\": null, \"is_new\": true, \"severity\": \"warning\", \"notify\": true, \"title\": \"Unknown device joined the network: Unknown-Android\"}"},{"id":1,"ts":1784402032,"severity":"notice","title":"New device for Cooper: Cooper iPhone","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","notified":1,"raw":"{\"ts\": 1784402032, \"type\": \"ARRIVED\", \"mac\": \"a6:4c:c9:b6:9c:c0\", \"name\": \"Cooper iPhone\", \"person\": \"Cooper\", \"ip\": \"192.168.4.31\", \"gateway\": \"Hallway\", \"rssi\": -58, \"profile\": \"Cooper\", \"network_id\": null, \"is_new\": true, \"severity\": \"notice\", \"notify\": true, \"title\": \"New device for Cooper: Cooper iPhone\"}"}],"polls":[{"id":9,"started_ts":1784403381,"finished_ts":1784403381,"duration_ms":16,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},{"id":8,"started_ts":1784402687,"finished_ts":1784402687,"duration_ms":21,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},{"id":7,"started_ts":1784402387,"finished_ts":1784402387,"duration_ms":36,"api_latency_ms":5,"success":1,"error":null,"device_count":4,"event_count":0},{"id":6,"started_ts":1784402087,"finished_ts":1784402087,"duration_ms":31,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":1},{"id":5,"started_ts":1784402036,"finished_ts":1784402036,"duration_ms":20,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":1},{"id":4,"started_ts":1784402034,"finished_ts":1784402034,"duration_ms":8,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":0},{"id":3,"started_ts":1784402034,"finished_ts":1784402034,"duration_ms":27,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":2},{"id":2,"started_ts":1784402032,"finished_ts":1784402032,"duration_ms":30,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":2},{"id":1,"started_ts":1784402009,"finished_ts":1784402009,"duration_ms":95,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":0}],"events_per_hour":[{"hour":1784401200,"n":6}]};
-const DEVS = [{"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","hostname":null,"vendor":"Shenzhen","manufacturer":"Shenzhen","profile":null,"person":null,"network_id":null,"ip":"192.168.4.199","last_ip":"192.168.4.199","gateway":"Garage","rssi":-77,"online":1,"online_since":1784402032,"misses":0,"first_seen":"1784402032","last_seen":"1784403381","watched":false},{"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","hostname":null,"vendor":"Apple","manufacturer":"Apple","profile":"Cooper","person":"Cooper","network_id":null,"ip":"192.168.4.31","last_ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"online":1,"online_since":1784402032,"misses":0,"first_seen":"1784402032","last_seen":"1784403381","watched":true},{"mac":"40:99:22:9c:be:ab","name":"PS4-5654B9","hostname":null,"vendor":"Sony","manufacturer":"Sony","profile":null,"person":null,"network_id":null,"ip":"192.168.4.60","last_ip":"192.168.4.60","gateway":"Bedroom","rssi":-63,"online":1,"online_since":1784402009,"misses":0,"first_seen":"1784402009","last_seen":"1784403381","watched":true},{"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","hostname":null,"vendor":"Samsung","manufacturer":"Samsung","profile":null,"person":null,"network_id":null,"ip":"192.168.4.10","last_ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"online":0,"online_since":null,"misses":0,"first_seen":"1784402009","last_seen":"1784402009","watched":false},{"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","hostname":null,"vendor":"Apple","manufacturer":"Apple","profile":"Jeremiah","person":"Jeremiah","network_id":null,"ip":"192.168.4.23","last_ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"online":1,"online_since":1784402087,"misses":0,"first_seen":"1784402009","last_seen":"1784403381","watched":true}];
+// Live API (overridable for testing: demo.html?api=http://localhost:8080)
+const API = new URLSearchParams(location.search).get('api') || 'https://presence.jc-eero.site';
+const REFRESH_MS = 60000;
+
+// Embedded snapshot — used only when the live API is unreachable.
+const SNAPSHOT_DB = {"network":"Sf","presence":{"persons":{"Cooper":true,"Jeremiah":true,"Myles":false},"people_home":2,"devices_online":4,"devices_total":5,"home":[{"name":"PS4-5654B9","mac":"40:99:22:9c:be:ab","person":null,"gateway":"Bedroom","rssi":-63,"ip":"192.168.4.60","online_since":1784402009,"duration":"26m"},{"name":"Cooper iPhone","mac":"a6:4c:c9:b6:9c:c0","person":"Cooper","gateway":"Hallway","rssi":-58,"ip":"192.168.4.31","online_since":1784402032,"duration":"25m"},{"name":"Unknown-Android","mac":"de:ad:be:ef:00:42","person":null,"gateway":"Garage","rssi":-77,"ip":"192.168.4.199","online_since":1784402032,"duration":"25m"},{"name":"Jere iPhone","mac":"72:c0:e8:62:51:50","person":"Jeremiah","gateway":"Living Room","rssi":-51,"ip":"192.168.4.23","online_since":1784402087,"duration":"24m"}]},"cards":{"devices_online":4,"devices_total":5,"people_home":2,"people_total":3,"last_poll":{"id":9,"started_ts":1784403381,"finished_ts":1784403381,"duration_ms":16,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},"poll_interval":300,"alerts_24h":4,"alerts_by_severity_24h":{"notice":3,"warning":1},"events_24h":6,"slack_configured":true},"arrivals":[{"id":6,"ts":1784402087,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","ip":"192.168.4.23","network_id":null,"signal":"-51","profile":"Jeremiah","detail":{"ts":1784402087,"type":"ARRIVED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah arrived home (Jere iPhone)"}},{"id":2,"ts":1784402032,"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","ip":"192.168.4.199","network_id":null,"signal":"-77","profile":null,"detail":{"ts":1784402032,"type":"ONLINE","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","person":null,"ip":"192.168.4.199","gateway":"Garage","rssi":-77,"profile":null,"network_id":null,"is_new":true,"severity":"warning","notify":true,"title":"Unknown device joined the network: Unknown-Android"}},{"id":1,"ts":1784402032,"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","ip":"192.168.4.31","network_id":null,"signal":"-58","profile":"Cooper","detail":{"ts":1784402032,"type":"ARRIVED","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","person":"Cooper","ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"profile":"Cooper","network_id":null,"is_new":true,"severity":"notice","notify":true,"title":"New device for Cooper: Cooper iPhone"}}],"departures":[{"id":5,"ts":1784402036,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402036,"type":"LEFT","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah left home (Jere iPhone)","session_seconds":27,"last_seen_ts":1784402034}},{"id":4,"ts":1784402034,"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","event":"OFFLINE","ip":"192.168.4.10","network_id":null,"signal":"-40","profile":null,"detail":{"ts":1784402034,"type":"OFFLINE","mac":"aa:bb:cc:00:11:22","name":"Samsung TV","person":null,"ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"profile":null,"network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Samsung TV went offline","session_seconds":25,"last_seen_ts":1784402009}}],"timeline":[{"id":6,"ts":1784402087,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","ip":"192.168.4.23","network_id":null,"signal":"-51","profile":"Jeremiah","detail":{"ts":1784402087,"type":"ARRIVED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah arrived home (Jere iPhone)"}},{"id":5,"ts":1784402036,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402036,"type":"LEFT","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"notice","notify":true,"title":"Jeremiah left home (Jere iPhone)","session_seconds":27,"last_seen_ts":1784402034}},{"id":4,"ts":1784402034,"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","event":"OFFLINE","ip":"192.168.4.10","network_id":null,"signal":"-40","profile":null,"detail":{"ts":1784402034,"type":"OFFLINE","mac":"aa:bb:cc:00:11:22","name":"Samsung TV","person":null,"ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"profile":null,"network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Samsung TV went offline","session_seconds":25,"last_seen_ts":1784402009}},{"id":3,"ts":1784402034,"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ROAMED","ip":"192.168.4.23","network_id":null,"signal":"-60","profile":"Jeremiah","detail":{"ts":1784402034,"type":"ROAMED","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","person":"Jeremiah","ip":"192.168.4.23","gateway":"Bedroom","rssi":-60,"profile":"Jeremiah","network_id":null,"is_new":false,"severity":"info","notify":false,"title":"Jere iPhone roamed Living Room → Bedroom","from_gateway":"Living Room","to_gateway":"Bedroom"}},{"id":2,"ts":1784402032,"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","ip":"192.168.4.199","network_id":null,"signal":"-77","profile":null,"detail":{"ts":1784402032,"type":"ONLINE","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","person":null,"ip":"192.168.4.199","gateway":"Garage","rssi":-77,"profile":null,"network_id":null,"is_new":true,"severity":"warning","notify":true,"title":"Unknown device joined the network: Unknown-Android"}},{"id":1,"ts":1784402032,"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","ip":"192.168.4.31","network_id":null,"signal":"-58","profile":"Cooper","detail":{"ts":1784402032,"type":"ARRIVED","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","person":"Cooper","ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"profile":"Cooper","network_id":null,"is_new":true,"severity":"notice","notify":true,"title":"New device for Cooper: Cooper iPhone"}}],"alerts":[{"id":4,"ts":1784402087,"severity":"notice","title":"Jeremiah arrived home (Jere iPhone)","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"ARRIVED","notified":1,"raw":"{\"ts\": 1784402087, \"type\": \"ARRIVED\", \"mac\": \"72:c0:e8:62:51:50\", \"name\": \"Jere iPhone\", \"person\": \"Jeremiah\", \"ip\": \"192.168.4.23\", \"gateway\": \"Living Room\", \"rssi\": -51, \"profile\": \"Jeremiah\", \"network_id\": null, \"is_new\": false, \"severity\": \"notice\", \"notify\": true, \"title\": \"Jeremiah arrived home (Jere iPhone)\"}"},{"id":3,"ts":1784402036,"severity":"notice","title":"Jeremiah left home (Jere iPhone)","mac":"72:c0:e8:62:51:50","name":"Jere iPhone","event":"LEFT","notified":1,"raw":"{\"ts\": 1784402036, \"type\": \"LEFT\", \"mac\": \"72:c0:e8:62:51:50\", \"name\": \"Jere iPhone\", \"person\": \"Jeremiah\", \"ip\": \"192.168.4.23\", \"gateway\": \"Bedroom\", \"rssi\": -60, \"profile\": \"Jeremiah\", \"network_id\": null, \"is_new\": false, \"severity\": \"notice\", \"notify\": true, \"title\": \"Jeremiah left home (Jere iPhone)\", \"session_seconds\": 27, \"last_seen_ts\": 1784402034}"},{"id":2,"ts":1784402032,"severity":"warning","title":"Unknown device joined the network: Unknown-Android","mac":"de:ad:be:ef:00:42","name":"Unknown-Android","event":"ONLINE","notified":1,"raw":"{\"ts\": 1784402032, \"type\": \"ONLINE\", \"mac\": \"de:ad:be:ef:00:42\", \"name\": \"Unknown-Android\", \"person\": null, \"ip\": \"192.168.4.199\", \"gateway\": \"Garage\", \"rssi\": -77, \"profile\": null, \"network_id\": null, \"is_new\": true, \"severity\": \"warning\", \"notify\": true, \"title\": \"Unknown device joined the network: Unknown-Android\"}"},{"id":1,"ts":1784402032,"severity":"notice","title":"New device for Cooper: Cooper iPhone","mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","event":"ARRIVED","notified":1,"raw":"{\"ts\": 1784402032, \"type\": \"ARRIVED\", \"mac\": \"a6:4c:c9:b6:9c:c0\", \"name\": \"Cooper iPhone\", \"person\": \"Cooper\", \"ip\": \"192.168.4.31\", \"gateway\": \"Hallway\", \"rssi\": -58, \"profile\": \"Cooper\", \"network_id\": null, \"is_new\": true, \"severity\": \"notice\", \"notify\": true, \"title\": \"New device for Cooper: Cooper iPhone\"}"}],"polls":[{"id":9,"started_ts":1784403381,"finished_ts":1784403381,"duration_ms":16,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},{"id":8,"started_ts":1784402687,"finished_ts":1784402687,"duration_ms":21,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":0},{"id":7,"started_ts":1784402387,"finished_ts":1784402387,"duration_ms":36,"api_latency_ms":5,"success":1,"error":null,"device_count":4,"event_count":0},{"id":6,"started_ts":1784402087,"finished_ts":1784402087,"duration_ms":31,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":1},{"id":5,"started_ts":1784402036,"finished_ts":1784402036,"duration_ms":20,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":1},{"id":4,"started_ts":1784402034,"finished_ts":1784402034,"duration_ms":8,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":0},{"id":3,"started_ts":1784402034,"finished_ts":1784402034,"duration_ms":27,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":2},{"id":2,"started_ts":1784402032,"finished_ts":1784402032,"duration_ms":30,"api_latency_ms":1,"success":1,"error":null,"device_count":4,"event_count":2},{"id":1,"started_ts":1784402009,"finished_ts":1784402009,"duration_ms":95,"api_latency_ms":1,"success":1,"error":null,"device_count":3,"event_count":0}],"events_per_hour":[{"hour":1784401200,"n":6}]};
+const SNAPSHOT_DEVS = [{"mac":"de:ad:be:ef:00:42","name":"Unknown-Android","hostname":null,"vendor":"Shenzhen","manufacturer":"Shenzhen","profile":null,"person":null,"network_id":null,"ip":"192.168.4.199","last_ip":"192.168.4.199","gateway":"Garage","rssi":-77,"online":1,"online_since":1784402032,"misses":0,"first_seen":"1784402032","last_seen":"1784403381","watched":false},{"mac":"a6:4c:c9:b6:9c:c0","name":"Cooper iPhone","hostname":null,"vendor":"Apple","manufacturer":"Apple","profile":"Cooper","person":"Cooper","network_id":null,"ip":"192.168.4.31","last_ip":"192.168.4.31","gateway":"Hallway","rssi":-58,"online":1,"online_since":1784402032,"misses":0,"first_seen":"1784402032","last_seen":"1784403381","watched":true},{"mac":"40:99:22:9c:be:ab","name":"PS4-5654B9","hostname":null,"vendor":"Sony","manufacturer":"Sony","profile":null,"person":null,"network_id":null,"ip":"192.168.4.60","last_ip":"192.168.4.60","gateway":"Bedroom","rssi":-63,"online":1,"online_since":1784402009,"misses":0,"first_seen":"1784402009","last_seen":"1784403381","watched":true},{"mac":"aa:bb:cc:00:11:22","name":"Samsung TV","hostname":null,"vendor":"Samsung","manufacturer":"Samsung","profile":null,"person":null,"network_id":null,"ip":"192.168.4.10","last_ip":"192.168.4.10","gateway":"Living Room","rssi":-40,"online":0,"online_since":null,"misses":0,"first_seen":"1784402009","last_seen":"1784402009","watched":false},{"mac":"72:c0:e8:62:51:50","name":"Jere iPhone","hostname":null,"vendor":"Apple","manufacturer":"Apple","profile":"Jeremiah","person":"Jeremiah","network_id":null,"ip":"192.168.4.23","last_ip":"192.168.4.23","gateway":"Living Room","rssi":-51,"online":1,"online_since":1784402087,"misses":0,"first_seen":"1784402009","last_seen":"1784403381","watched":true}];
+const SNAPSHOT_TIME = '2026-07-18 19:39 UTC';
+const SNAPSHOT_ISO = '2026-07-18T23:50:08Z';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const t = ts => ts ? new Date(ts*1000).toLocaleString() : '';
@@ -143,64 +153,105 @@ const SEV_ICON = {info:'ℹ', notice:'●', warning:'▲', critical:'⬤'};
 const evt = e => `<span class="evt ${esc(e)}">${EVT_ICON[e]||''} ${esc(e)}</span>`;
 const $ = id => document.getElementById(id);
 
-const c = DB.cards, p = DB.presence;
-$('net').textContent = DB.network ? `network: ${DB.network}` : '';
-$('t_online').textContent = c.devices_online;
-$('t_total').textContent = `${c.devices_total} known devices`;
-$('t_people').textContent = c.people_home;
-$('t_persons').textContent = `of ${c.people_total} people`;
-const lp = c.last_poll;
-$('t_lastpoll').textContent = lp ? tt(lp.started_ts) : '–';
-$('t_apistatus').innerHTML = lp ? (lp.success ? '<span style="color:var(--good)">API healthy</span>' : '<span style="color:var(--critical)">API error</span>') : '';
-$('t_duration').textContent = lp ? `${lp.duration_ms} ms` : '–';
-$('t_latency').textContent = lp && lp.api_latency_ms != null ? `API latency ${lp.api_latency_ms} ms` : '';
-$('t_alerts').textContent = c.alerts_24h;
-$('t_sev').textContent = Object.entries(c.alerts_by_severity_24h||{}).map(([k,v])=>`${v} ${k}`).join(' · ') || 'all quiet';
-$('t_events').textContent = c.events_24h;
-$('t_interval').textContent = `polling every ${Math.round(c.poll_interval/60)}m`;
+function render(DB, DEVS, nowMs){
+  const c = DB.cards, p = DB.presence;
+  $('net').textContent = DB.network ? `network: ${DB.network}` : '';
+  $('t_online').textContent = c.devices_online;
+  $('t_total').textContent = `${c.devices_total} known devices`;
+  $('t_people').textContent = c.people_home;
+  $('t_persons').textContent = `of ${c.people_total} people`;
+  const lp = c.last_poll;
+  $('t_lastpoll').textContent = lp ? tt(lp.started_ts) : '–';
+  $('t_apistatus').innerHTML = lp ? (lp.success ? '<span style="color:var(--good)">API healthy</span>' : '<span style="color:var(--critical)">API error</span>') : '';
+  $('t_duration').textContent = lp ? `${lp.duration_ms} ms` : '–';
+  $('t_latency').textContent = lp && lp.api_latency_ms != null ? `API latency ${lp.api_latency_ms} ms` : '';
+  $('t_alerts').textContent = c.alerts_24h;
+  $('t_sev').textContent = Object.entries(c.alerts_by_severity_24h||{}).map(([k,v])=>`${v} ${k}`).join(' · ') || 'all quiet';
+  $('t_events').textContent = c.events_24h;
+  $('t_interval').textContent = `polling every ${Math.round(c.poll_interval/60)}m`;
 
-const home = p.home || [];
-$('home').innerHTML = home.map(h=>`
-  <div class="chip"><div class="n">${esc(h.person||h.name)}</div>
-  <div class="m">${esc(h.person?h.name:'')}${h.gateway?` · ${esc(h.gateway)}`:''}${h.duration?` · ${esc(h.duration)}`:''}</div></div>`).join('');
-$('home_empty').hidden = !!home.length;
+  const home = p.home || [];
+  $('home').innerHTML = home.map(h=>`
+    <div class="chip"><div class="n">${esc(h.person||h.name)}</div>
+    <div class="m">${esc(h.person?h.name:'')}${h.gateway?` · ${esc(h.gateway)}`:''}${h.duration?` · ${esc(h.duration)}`:''}</div></div>`).join('');
+  $('home_empty').hidden = !!home.length;
 
-const rowsEv = list => list.map(x=>`<tr><td class="num">${tt(x.ts)}</td><td>${evt(x.event)}</td><td style="white-space:normal">${esc(x.detail?.person||x.name||x.mac)}</td></tr>`).join('');
-$('arrivals').innerHTML = DB.arrivals.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(DB.arrivals) : '';
-$('arrivals_empty').hidden = !!DB.arrivals.length;
-$('departures').innerHTML = DB.departures.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(DB.departures) : '';
-$('departures_empty').hidden = !!DB.departures.length;
+  const rowsEv = list => list.map(x=>`<tr><td class="num">${tt(x.ts)}</td><td>${evt(x.event)}</td><td style="white-space:normal">${esc(x.detail?.person||x.name||x.mac)}</td></tr>`).join('');
+  $('arrivals').innerHTML = DB.arrivals.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(DB.arrivals) : '';
+  $('arrivals_empty').hidden = !!DB.arrivals.length;
+  $('departures').innerHTML = DB.departures.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(DB.departures) : '';
+  $('departures_empty').hidden = !!DB.departures.length;
 
-$('polls').innerHTML = '<tr><th>Time</th><th>OK</th><th>ms</th><th>API ms</th><th>Dev</th><th>Ev</th></tr>' +
-  DB.polls.slice(0,8).map(x=>`<tr><td class="num">${tt(x.started_ts)}</td>
-    <td>${x.success?'<span style="color:var(--good)">✓</span>':'<span style="color:var(--critical)">✗</span>'}</td>
-    <td class="num">${x.duration_ms}</td><td class="num">${x.api_latency_ms??''}</td>
-    <td class="num">${x.device_count}</td><td class="num">${x.event_count}</td></tr>`).join('');
+  $('polls').innerHTML = '<tr><th>Time</th><th>OK</th><th>ms</th><th>API ms</th><th>Dev</th><th>Ev</th></tr>' +
+    DB.polls.slice(0,8).map(x=>`<tr><td class="num">${tt(x.started_ts)}</td>
+      <td>${x.success?'<span style="color:var(--good)">✓</span>':'<span style="color:var(--critical)">✗</span>'}</td>
+      <td class="num">${x.duration_ms}</td><td class="num">${x.api_latency_ms??''}</td>
+      <td class="num">${x.device_count}</td><td class="num">${x.event_count}</td></tr>`).join('');
 
-const nowH = Math.floor(new Date('2026-07-18T19:40:51Z').getTime()/1000/3600)*3600;
-const byHour = Object.fromEntries((DB.events_per_hour||[]).map(r=>[r.hour, r.n]));
-const buckets = Array.from({length:24}, (_,i)=>{ const h = nowH-(23-i)*3600; return {h, n: byHour[h]||0}; });
-const max = Math.max(1, ...buckets.map(b=>b.n));
-$('chart').innerHTML = buckets.map(b=>
-  `<div class="bar${b.n?'':' zero'}" style="height:${Math.max(4, b.n/max*100)}%" title="${new Date(b.h*1000).toLocaleTimeString([], {hour:'numeric'})}: ${b.n} event${b.n==1?'':'s'}"></div>`).join('');
-$('ax0').textContent = new Date((nowH-23*3600)*1000).toLocaleTimeString([], {hour:'numeric'});
+  const nowH = Math.floor(nowMs/1000/3600)*3600;
+  const byHour = Object.fromEntries((DB.events_per_hour||[]).map(r=>[r.hour, r.n]));
+  const buckets = Array.from({length:24}, (_,i)=>{ const h = nowH-(23-i)*3600; return {h, n: byHour[h]||0}; });
+  const max = Math.max(1, ...buckets.map(b=>b.n));
+  $('chart').innerHTML = buckets.map(b=>
+    `<div class="bar${b.n?'':' zero'}" style="height:${Math.max(4, b.n/max*100)}%" title="${new Date(b.h*1000).toLocaleTimeString([], {hour:'numeric'})}: ${b.n} event${b.n==1?'':'s'}"></div>`).join('');
+  $('ax0').textContent = new Date((nowH-23*3600)*1000).toLocaleTimeString([], {hour:'numeric'});
 
-$('timeline').innerHTML = DB.timeline.map(x=>`
-  <li><span class="t num">${tt(x.ts)}</span>${evt(x.event)}<span style="white-space:normal">${esc(x.detail?.title||x.name||x.mac)}</span></li>`).join('');
+  $('timeline').innerHTML = DB.timeline.map(x=>`
+    <li><span class="t num">${tt(x.ts)}</span>${evt(x.event)}<span style="white-space:normal">${esc(x.detail?.title||x.name||x.mac)}</span></li>`).join('');
 
-$('alerts').innerHTML = DB.alerts.length ? '<tr><th>Time</th><th>Severity</th><th>Alert</th></tr>' +
-  DB.alerts.map(x=>`<tr><td class="num">${t(x.ts)}</td><td><span class="sev ${esc(x.severity)}">${SEV_ICON[x.severity]||'ℹ'} ${esc(x.severity)}</span></td><td style="white-space:normal">${esc(x.title)}</td></tr>`).join('') : '';
+  $('alerts').innerHTML = DB.alerts.length ? '<tr><th>Time</th><th>Severity</th><th>Alert</th></tr>' +
+    DB.alerts.map(x=>`<tr><td class="num">${t(x.ts)}</td><td><span class="sev ${esc(x.severity)}">${SEV_ICON[x.severity]||'ℹ'} ${esc(x.severity)}</span></td><td style="white-space:normal">${esc(x.title)}</td></tr>`).join('') : '';
 
-$('devices').innerHTML = '<tr><th>Status</th><th>Name</th><th>Person</th><th>MAC</th><th>IP</th><th>Gateway</th><th>RSSI</th><th>Watched</th><th>Last Seen</th></tr>' +
-  DEVS.map(x=>`<tr>
-    <td><span class="badge ${x.online?'online':'offline'}">${x.online?'online':'offline'}</span></td>
-    <td>${esc(x.name||'')}</td>
-    <td>${x.person?`<span class="badge person">${esc(x.person)}</span>`:''}</td>
-    <td class="num">${esc(x.mac||'')}</td><td class="num">${esc(x.ip||x.last_ip||'')}</td>
-    <td>${esc(x.gateway||'')}</td><td class="num">${x.rssi??''}</td>
-    <td>${x.watched?'<span class="badge watched">watched</span>':''}</td>
-    <td class="num">${/^\d+$/.test(String(x.last_seen))?t(+x.last_seen):esc(x.last_seen||'')}</td></tr>`).join('');
+  $('devices').innerHTML = '<tr><th>Status</th><th>Name</th><th>Person</th><th>MAC</th><th>IP</th><th>Gateway</th><th>RSSI</th><th>Watched</th><th>Last Seen</th></tr>' +
+    DEVS.map(x=>`<tr>
+      <td><span class="badge ${x.online?'online':'offline'}">${x.online?'online':'offline'}</span></td>
+      <td>${esc(x.name||'')}</td>
+      <td>${x.person?`<span class="badge person">${esc(x.person)}</span>`:''}</td>
+      <td class="num">${esc(x.mac||'')}</td><td class="num">${esc(x.ip||x.last_ip||'')}</td>
+      <td>${esc(x.gateway||'')}</td><td class="num">${x.rssi??''}</td>
+      <td>${x.watched?'<span class="badge watched">watched</span>':''}</td>
+      <td class="num">${/^\d+$/.test(String(x.last_seen))?t(+x.last_seen):esc(x.last_seen||'')}</td></tr>`).join('');
+}
+
+function setMode(live, detail){
+  $('modedot').classList.toggle('live', live);
+  $('modetext').textContent = live ? 'live' : 'snapshot';
+  $('note').textContent = live
+    ? `Live data from ${API.replace(/^https?:\/\//,'')} — auto-refreshes every ${REFRESH_MS/1000}s. ${detail||''}`
+    : `Live API unreachable — showing a static snapshot from ${SNAPSHOT_TIME}. ${detail||''}`;
+}
+
+async function loadLive(){
+  const [dr, vr] = await Promise.all([
+    fetch(`${API}/api/dashboard`, {mode:'cors'}),
+    fetch(`${API}/api/devices`, {mode:'cors'}),
+  ]);
+  if (!dr.ok || !vr.ok) throw new Error(`api ${dr.status}/${vr.status}`);
+  render(await dr.json(), await vr.json(), Date.now());
+  setMode(true);
+}
+
+let wsStarted = false;
+function startWS(){
+  if (wsStarted) return; wsStarted = true;
+  try {
+    const ws = new WebSocket(API.replace(/^http/, 'ws') + '/ws');
+    ws.onmessage = () => loadLive().catch(()=>{});
+    ws.onclose = () => { wsStarted = false; setTimeout(startWS, 15000); };
+  } catch (e) { /* polling still covers us */ }
+}
+
+async function tick(){
+  try {
+    await loadLive();
+    startWS();
+  } catch (e) {
+    render(SNAPSHOT_DB, SNAPSHOT_DEVS, new Date(SNAPSHOT_ISO).getTime());
+    setMode(false, 'It will switch to live automatically once the platform is reachable.');
+  }
+}
+tick();
+setInterval(tick, REFRESH_MS);
 </script>
-
 </body>
 </html>

@@ -339,6 +339,13 @@ async def shutdown_event():
 def create_app(config_path='config/config.example.yaml'):
     global CFG, CON, ENGINE
     CFG = load_cfg(config_path)
+    origins = (CFG.get('web') or {}).get('cors_origins') or []
+    if origins and not getattr(app.state, 'cors_added', False):
+        from fastapi.middleware.cors import CORSMiddleware
+        # read-only cross-origin access for external dashboards (e.g. the
+        # GitHub Pages demo); POST endpoints stay same-origin
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['GET'], allow_headers=['*'])
+        app.state.cors_added = True
     CON = connect(CFG.get('database', './data/eero_intel.db'))
     ENGINE = PresenceEngine(CFG, CON, listeners=[_slack_listener, _ws_listener, _mqtt_listener])
     if os.path.exists(CFG.get('dsarexport', '')):
