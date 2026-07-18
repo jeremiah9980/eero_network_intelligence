@@ -1,2 +1,170 @@
-<!doctype html><html><head><meta charset=utf-8><title>eero Network Intelligence</title><style>body{font-family:system-ui;background:#0b0f14;color:#e8eef5;margin:25px}.card{background:#151b23;border:1px solid #263241;border-radius:16px;padding:16px;margin:12px 0}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #263241}.pill{border-radius:999px;background:#193b66;padding:4px 9px}</style></head><body><h1>eero Network Intelligence</h1><button onclick=refresh()>Refresh</button> <button onclick=poll()>Poll Now</button><div id=status class=card>Loading…</div><h2>Devices</h2><div class=card><table id=devices></table></div><h2>Presence Events</h2><div class=card><table id=events></table></div><script>
-async function j(u,o){return (await fetch(u,o)).json()} async function poll(){await j('/api/poll',{method:'POST'});refresh()} async function refresh(){let d=await j('/api/devices'),e=await j('/api/events');status.innerHTML=`<span class=pill>${d.length} known devices</span> <span class=pill>${e.length} recent events</span>`;devices.innerHTML='<tr><th>Name</th><th>MAC</th><th>Vendor</th><th>Profile</th><th>Last Seen</th></tr>'+d.map(x=>`<tr><td>${x.name||''}</td><td>${x.mac||''}</td><td>${x.vendor||''}</td><td>${x.profile||''}</td><td>${x.last_seen||''}</td></tr>`).join('');events.innerHTML='<tr><th>Time</th><th>Event</th><th>Name</th><th>MAC</th><th>IP</th></tr>'+e.map(x=>`<tr><td>${new Date(x.ts*1000).toLocaleString()}</td><td>${x.event}</td><td>${x.name||''}</td><td>${x.mac||''}</td><td>${x.ip||''}</td></tr>`).join('')}refresh();let ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws');ws.onmessage=()=>refresh();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eero Presence Security Dashboard</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--page);color:var(--ink);margin:0;padding:24px;font-size:14px;line-height:1.45}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px}
+  h1{font-size:20px;margin:0;font-weight:650}
+  h2{font-size:13px;margin:0 0 10px;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+  .sub{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  button{background:var(--surface-2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+  button:hover{background:#2c2c2a}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+  .dot.live{background:var(--good)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .tile .v{font-size:28px;font-weight:650;margin-top:2px}
+  .tile .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  .tile .d{color:var(--ink-2);font-size:12px;margin-top:2px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;overflow-x:auto}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{color:var(--muted);text-align:left;font-weight:500;font-size:12px}
+  td,th{padding:7px 10px;border-bottom:1px solid var(--grid);white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .num{font-variant-numeric:tabular-nums}
+  .badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:12px;border:1px solid var(--border);color:var(--ink-2)}
+  .badge::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .badge.online{color:var(--good)} .badge.online::before{background:var(--good)}
+  .badge.offline{color:var(--muted)}
+  .badge.watched{color:var(--accent)} .badge.watched::before{background:var(--accent)}
+  .sev{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+  .sev.info{color:var(--accent)} .sev.notice{color:var(--good)}
+  .sev.warning{color:var(--warning)} .sev.critical{color:var(--critical)}
+  .chart{display:flex;align-items:flex-end;gap:2px;height:72px;padding-top:6px}
+  .chart .bar{flex:1;min-width:4px;background:var(--accent);border-radius:4px 4px 0 0;position:relative}
+  .chart .bar.zero{background:var(--grid);height:2px !important}
+  .chart .bar:hover{background:#6da7ec}
+  .axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:6px}
+  .empty{color:var(--muted);padding:10px 0}
+  #toast{position:fixed;right:20px;bottom:20px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>eero Presence Security</h1>
+  <span class="sub" id="net"></span>
+  <span class="sub"><span class="dot" id="livedot"></span><span id="livetext">connecting…</span></span>
+  <div class="spacer"></div>
+  <span class="sub" id="slackstate"></span>
+  <button onclick="testSlack()">Test Slack Alert</button>
+  <button class="primary" onclick="pollNow()">Poll Now</button>
+</header>
+
+<div class="tiles">
+  <div class="tile"><div class="l">Devices Online</div><div class="v num" id="t_online">–</div><div class="d" id="t_total"></div></div>
+  <div class="tile"><div class="l">Watched Devices</div><div class="v num" id="t_watched">–</div><div class="d">on the notify list</div></div>
+  <div class="tile"><div class="l">Alerts · 24h</div><div class="v num" id="t_alerts">–</div><div class="d" id="t_sev"></div></div>
+  <div class="tile"><div class="l">Events · 24h</div><div class="v num" id="t_events">–</div><div class="d" id="t_poll"></div></div>
+</div>
+
+<div class="card">
+  <h2>Presence activity — events per hour, last 24h</h2>
+  <div class="chart" id="chart"></div>
+  <div class="axis"><span id="ax0"></span><span id="ax1">now</span></div>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h2>Security alerts</h2>
+    <table id="alerts"></table>
+    <div class="empty" id="alerts_empty" hidden>No alerts yet.</div>
+  </div>
+  <div class="card">
+    <h2>Presence events</h2>
+    <table id="events"></table>
+    <div class="empty" id="events_empty" hidden>No events yet.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Devices</h2>
+  <table id="devices"></table>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const t = ts => ts ? new Date(ts*1000).toLocaleString() : '';
+async function j(u,o){ const r = await fetch(u,o); return r.json(); }
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.style.display='block'; setTimeout(()=>el.style.display='none', 4000); }
+
+const SEV_ICON = {info:'ℹ', notice:'●', warning:'▲', critical:'⬤'};
+function sev(s){ return `<span class="sev ${esc(s)}">${SEV_ICON[s]||'ℹ'} ${esc(s)}</span>`; }
+
+async function refresh(){
+  const [s, d, e, a] = await Promise.all([j('/api/stats'), j('/api/devices'), j('/api/events?limit=50'), j('/api/alerts?limit=50')]);
+
+  document.getElementById('net').textContent = s.network ? `network: ${s.network}` : '';
+  document.getElementById('t_online').textContent = s.devices_online;
+  document.getElementById('t_total').textContent = `${s.devices_total} known devices`;
+  document.getElementById('t_watched').textContent = s.devices_watched;
+  document.getElementById('t_alerts').textContent = s.alerts_24h;
+  const bysev = s.alerts_by_severity_24h || {};
+  document.getElementById('t_sev').textContent = Object.entries(bysev).map(([k,v])=>`${v} ${k}`).join(' · ') || 'all quiet';
+  document.getElementById('t_events').textContent = s.events_24h;
+  document.getElementById('t_poll').textContent = s.last_poll ? `last poll ${t(s.last_poll.ts)}` : 'no polls yet';
+  document.getElementById('slackstate').innerHTML = s.slack_configured
+    ? '<span class="badge online">Slack connected</span>'
+    : '<span class="badge offline">Slack not configured</span>';
+
+  // 24 hourly buckets ending now
+  const now = Math.floor(Date.now()/1000/3600)*3600;
+  const byHour = Object.fromEntries((s.events_per_hour||[]).map(r=>[r.hour, r.n]));
+  const buckets = Array.from({length:24}, (_,i)=>{ const h = now-(23-i)*3600; return {h, n: byHour[h]||0}; });
+  const max = Math.max(1, ...buckets.map(b=>b.n));
+  document.getElementById('chart').innerHTML = buckets.map(b=>
+    `<div class="bar${b.n?'':' zero'}" style="height:${Math.max(4, b.n/max*100)}%" title="${new Date(b.h*1000).toLocaleTimeString([], {hour:'numeric'})}: ${b.n} event${b.n==1?'':'s'}"></div>`).join('');
+  document.getElementById('ax0').textContent = new Date((now-23*3600)*1000).toLocaleTimeString([], {hour:'numeric'});
+
+  document.getElementById('alerts').innerHTML = a.length ? '<tr><th>Time</th><th>Severity</th><th>Alert</th></tr>' +
+    a.map(x=>`<tr><td class="num">${t(x.ts)}</td><td>${sev(x.severity)}</td><td style="white-space:normal">${esc(x.title)}</td></tr>`).join('') : '';
+  document.getElementById('alerts_empty').hidden = !!a.length;
+
+  document.getElementById('events').innerHTML = e.length ? '<tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th></tr>' +
+    e.map(x=>`<tr><td class="num">${t(x.ts)}</td><td>${esc(x.event)}</td><td>${esc(x.name||x.mac||'')}</td><td class="num">${esc(x.ip||'')}</td></tr>`).join('') : '';
+  document.getElementById('events_empty').hidden = !!e.length;
+
+  document.getElementById('devices').innerHTML = '<tr><th>Status</th><th>Name</th><th>MAC</th><th>IP</th><th>Vendor</th><th>Profile</th><th>Watched</th><th>Last Seen</th></tr>' +
+    d.map(x=>`<tr>
+      <td><span class="badge ${x.online?'online':'offline'}">${x.online?'online':'offline'}</span></td>
+      <td>${esc(x.name||'')}</td><td class="num">${esc(x.mac||'')}</td><td class="num">${esc(x.last_ip||'')}</td>
+      <td>${esc(x.vendor||'')}</td><td>${esc(x.profile||'')}</td>
+      <td>${x.watched?'<span class="badge watched">watched</span>':''}</td>
+      <td class="num">${esc(x.last_seen||'')}</td></tr>`).join('');
+}
+
+async function pollNow(){ toast('Polling eero…'); await j('/api/poll',{method:'POST'}); await refresh(); toast('Poll complete'); }
+async function testSlack(){
+  toast('Sending test alert…');
+  const r = await j('/api/notify/test',{method:'POST'});
+  toast(!r.configured ? 'No Slack webhook configured (set SLACK_WEBHOOK_URL)' : r.ok ? 'Test alert delivered to Slack ✓' : 'Slack delivery failed — check webhook URL');
+}
+
+function connectWS(){
+  const ws = new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host+'/ws');
+  const dot=document.getElementById('livedot'), txt=document.getElementById('livetext');
+  ws.onopen = ()=>{ dot.classList.add('live'); txt.textContent='live'; };
+  ws.onmessage = ()=>refresh();
+  ws.onclose = ()=>{ dot.classList.remove('live'); txt.textContent='reconnecting…'; setTimeout(connectWS, 3000); };
+}
+refresh(); connectWS();
+</script>
+</body>
+</html>

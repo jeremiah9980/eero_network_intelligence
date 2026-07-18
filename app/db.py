@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS devices(mac TEXT PRIMARY KEY, name TEXT, hostname TEX
 CREATE TABLE IF NOT EXISTS presence_events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, mac TEXT, name TEXT, event TEXT, ip TEXT, network_id TEXT, signal TEXT, profile TEXT, raw TEXT);
 CREATE TABLE IF NOT EXISTS snapshots(id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, source TEXT, raw TEXT);
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS alerts(id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, severity TEXT, title TEXT, mac TEXT, name TEXT, event TEXT, notified INTEGER DEFAULT 0, raw TEXT);
+CREATE INDEX IF NOT EXISTS idx_events_ts ON presence_events(ts);
+CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(ts);
 '''
 def connect(path):
     Path(path).parent.mkdir(parents=True, exist_ok=True); con=sqlite3.connect(path, check_same_thread=False); con.row_factory=sqlite3.Row; con.executescript(SCHEMA); return con
@@ -19,5 +22,13 @@ def upsert_device(con,d):
 def add_event(con,d,event):
     con.execute('INSERT INTO presence_events(ts,mac,name,event,ip,network_id,signal,profile,raw) VALUES(?,?,?,?,?,?,?,?,?)',(int(time.time()),(d.get('mac') or '').lower(),d.get('name'),event,d.get('ip'),d.get('network_id'),str(d.get('signal') or ''),d.get('profile'),json.dumps(d)))
     con.commit()
+def add_alert(con,d,event,severity,title,notified=False):
+    con.execute('INSERT INTO alerts(ts,severity,title,mac,name,event,notified,raw) VALUES(?,?,?,?,?,?,?,?)',(int(time.time()),severity,title,(d.get('mac') or '').lower(),d.get('name'),event,1 if notified else 0,json.dumps(d)))
+    con.commit()
 def list_rows(con, table, limit=200):
     return [dict(r) for r in con.execute(f'SELECT * FROM {table} ORDER BY rowid DESC LIMIT ?', (limit,))]
+def events_per_hour(con, hours=24):
+    since=int(time.time())-hours*3600
+    return [dict(r) for r in con.execute('SELECT (ts/3600)*3600 AS hour, COUNT(*) AS n FROM presence_events WHERE ts>=? GROUP BY hour ORDER BY hour', (since,))]
+def count_since(con, table, since):
+    return con.execute(f'SELECT COUNT(*) AS n FROM {table} WHERE ts>=?', (since,)).fetchone()['n']
