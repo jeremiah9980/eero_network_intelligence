@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>eero Presence Security Dashboard</title>
+<title>eero Presence Intelligence</title>
 <style>
   :root{
     color-scheme: dark;
@@ -24,15 +24,16 @@
   button:hover{background:#2c2c2a}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
-  .dot.live{background:var(--good)}
-  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .dot.live{background:var(--good)} .dot.bad{background:var(--critical)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-  .tile .v{font-size:28px;font-weight:650;margin-top:2px}
+  .tile .v{font-size:26px;font-weight:650;margin-top:2px}
   .tile .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
   .tile .d{color:var(--ink-2);font-size:12px;margin-top:2px}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;overflow-x:auto}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:1000px){.cols,.cols3{grid-template-columns:1fr}}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{color:var(--muted);text-align:left;font-weight:500;font-size:12px}
   td,th{padding:7px 10px;border-bottom:1px solid var(--grid);white-space:nowrap}
@@ -43,21 +44,34 @@
   .badge.online{color:var(--good)} .badge.online::before{background:var(--good)}
   .badge.offline{color:var(--muted)}
   .badge.watched{color:var(--accent)} .badge.watched::before{background:var(--accent)}
+  .badge.person{color:var(--good);font-weight:600} .badge.person::before{background:var(--good)}
   .sev{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
   .sev.info{color:var(--accent)} .sev.notice{color:var(--good)}
   .sev.warning{color:var(--warning)} .sev.critical{color:var(--critical)}
-  .chart{display:flex;align-items:flex-end;gap:2px;height:72px;padding-top:6px}
-  .chart .bar{flex:1;min-width:4px;background:var(--accent);border-radius:4px 4px 0 0;position:relative}
+  .evt{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+  .evt.ARRIVED,.evt.ONLINE{color:var(--good)}
+  .evt.LEFT{color:var(--critical)} .evt.OFFLINE{color:var(--muted)}
+  .evt.ROAMED,.evt.RENAMED{color:var(--accent)}
+  .homechips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+  .chip .n{font-weight:600}
+  .chip .m{color:var(--muted);font-size:12px}
+  .timeline{list-style:none;margin:0;padding:0}
+  .timeline li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--grid);align-items:baseline}
+  .timeline li:last-child{border-bottom:none}
+  .timeline .t{color:var(--muted);font-size:12px;min-width:72px}
+  .chart{display:flex;align-items:flex-end;gap:2px;height:64px;padding-top:6px}
+  .chart .bar{flex:1;min-width:4px;background:var(--accent);border-radius:4px 4px 0 0}
   .chart .bar.zero{background:var(--grid);height:2px !important}
   .chart .bar:hover{background:#6da7ec}
   .axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:6px}
-  .empty{color:var(--muted);padding:10px 0}
-  #toast{position:fixed;right:20px;bottom:20px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:none}
+  .empty{color:var(--muted);padding:8px 0}
+  #toast{position:fixed;right:20px;bottom:20px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:none;z-index:9}
 </style>
 </head>
 <body>
 <header>
-  <h1>eero Presence Security</h1>
+  <h1>eero Presence Intelligence</h1>
   <span class="sub" id="net"></span>
   <span class="sub"><span class="dot" id="livedot"></span><span id="livetext">connecting…</span></span>
   <div class="spacer"></div>
@@ -68,27 +82,50 @@
 
 <div class="tiles">
   <div class="tile"><div class="l">Devices Online</div><div class="v num" id="t_online">–</div><div class="d" id="t_total"></div></div>
-  <div class="tile"><div class="l">Watched Devices</div><div class="v num" id="t_watched">–</div><div class="d">on the notify list</div></div>
+  <div class="tile"><div class="l">People Home</div><div class="v num" id="t_people">–</div><div class="d" id="t_persons"></div></div>
+  <div class="tile"><div class="l">Last Poll</div><div class="v num" id="t_lastpoll" style="font-size:17px">–</div><div class="d" id="t_apistatus"></div></div>
+  <div class="tile"><div class="l">Poll Duration</div><div class="v num" id="t_duration">–</div><div class="d" id="t_latency"></div></div>
   <div class="tile"><div class="l">Alerts · 24h</div><div class="v num" id="t_alerts">–</div><div class="d" id="t_sev"></div></div>
-  <div class="tile"><div class="l">Events · 24h</div><div class="v num" id="t_events">–</div><div class="d" id="t_poll"></div></div>
+  <div class="tile"><div class="l">Events · 24h</div><div class="v num" id="t_events">–</div><div class="d" id="t_interval"></div></div>
+</div>
+
+<div class="card">
+  <h2>Currently home</h2>
+  <div class="homechips" id="home"></div>
+  <div class="empty" id="home_empty" hidden>Nobody detected right now.</div>
+</div>
+
+<div class="cols3">
+  <div class="card">
+    <h2>Recent arrivals</h2>
+    <table id="arrivals"></table><div class="empty" id="arrivals_empty" hidden>None yet.</div>
+  </div>
+  <div class="card">
+    <h2>Recent departures</h2>
+    <table id="departures"></table><div class="empty" id="departures_empty" hidden>None yet.</div>
+  </div>
+  <div class="card">
+    <h2>Poll health</h2>
+    <table id="polls"></table>
+  </div>
 </div>
 
 <div class="card">
   <h2>Presence activity — events per hour, last 24h</h2>
   <div class="chart" id="chart"></div>
-  <div class="axis"><span id="ax0"></span><span id="ax1">now</span></div>
+  <div class="axis"><span id="ax0"></span><span>now</span></div>
 </div>
 
 <div class="cols">
   <div class="card">
+    <h2>Live timeline</h2>
+    <ul class="timeline" id="timeline"></ul>
+    <div class="empty" id="timeline_empty" hidden>No events yet.</div>
+  </div>
+  <div class="card">
     <h2>Security alerts</h2>
     <table id="alerts"></table>
     <div class="empty" id="alerts_empty" hidden>No alerts yet.</div>
-  </div>
-  <div class="card">
-    <h2>Presence events</h2>
-    <table id="events"></table>
-    <div class="empty" id="events_empty" hidden>No events yet.</div>
   </div>
 </div>
 
@@ -102,55 +139,81 @@
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const t = ts => ts ? new Date(ts*1000).toLocaleString() : '';
+const tt = ts => ts ? new Date(ts*1000).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
 async function j(u,o){ const r = await fetch(u,o); return r.json(); }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.style.display='block'; setTimeout(()=>el.style.display='none', 4000); }
-
+const EVT_ICON = {ARRIVED:'🟢', LEFT:'🔴', ONLINE:'🔵', OFFLINE:'⚪', ROAMED:'📶', RENAMED:'🏷'};
 const SEV_ICON = {info:'ℹ', notice:'●', warning:'▲', critical:'⬤'};
-function sev(s){ return `<span class="sev ${esc(s)}">${SEV_ICON[s]||'ℹ'} ${esc(s)}</span>`; }
+const evt = e => `<span class="evt ${esc(e)}">${EVT_ICON[e]||''} ${esc(e)}</span>`;
 
 async function refresh(){
-  const [s, d, e, a] = await Promise.all([j('/api/stats'), j('/api/devices'), j('/api/events?limit=50'), j('/api/alerts?limit=50')]);
+  const [db, devs] = await Promise.all([j('/api/dashboard'), j('/api/devices')]);
+  const c = db.cards, p = db.presence;
 
-  document.getElementById('net').textContent = s.network ? `network: ${s.network}` : '';
-  document.getElementById('t_online').textContent = s.devices_online;
-  document.getElementById('t_total').textContent = `${s.devices_total} known devices`;
-  document.getElementById('t_watched').textContent = s.devices_watched;
-  document.getElementById('t_alerts').textContent = s.alerts_24h;
-  const bysev = s.alerts_by_severity_24h || {};
-  document.getElementById('t_sev').textContent = Object.entries(bysev).map(([k,v])=>`${v} ${k}`).join(' · ') || 'all quiet';
-  document.getElementById('t_events').textContent = s.events_24h;
-  document.getElementById('t_poll').textContent = s.last_poll ? `last poll ${t(s.last_poll.ts)}` : 'no polls yet';
-  document.getElementById('slackstate').innerHTML = s.slack_configured
-    ? '<span class="badge online">Slack connected</span>'
-    : '<span class="badge offline">Slack not configured</span>';
+  document.getElementById('net').textContent = db.network ? `network: ${db.network}` : '';
+  document.getElementById('t_online').textContent = c.devices_online;
+  document.getElementById('t_total').textContent = `${c.devices_total} known devices`;
+  document.getElementById('t_people').textContent = c.people_home;
+  document.getElementById('t_persons').textContent = `of ${c.people_total} people`;
+  const lp = c.last_poll;
+  document.getElementById('t_lastpoll').textContent = lp ? tt(lp.started_ts) : '–';
+  document.getElementById('t_apistatus').innerHTML = lp ? (lp.success ? '<span style="color:var(--good)">API healthy</span>' : `<span style="color:var(--critical)">API error</span>`) : '';
+  document.getElementById('t_duration').textContent = lp ? `${lp.duration_ms} ms` : '–';
+  document.getElementById('t_latency').textContent = lp && lp.api_latency_ms != null ? `API latency ${lp.api_latency_ms} ms` : '';
+  document.getElementById('t_alerts').textContent = c.alerts_24h;
+  document.getElementById('t_sev').textContent = Object.entries(c.alerts_by_severity_24h||{}).map(([k,v])=>`${v} ${k}`).join(' · ') || 'all quiet';
+  document.getElementById('t_events').textContent = c.events_24h;
+  document.getElementById('t_interval').textContent = `polling every ${Math.round(c.poll_interval/60)}m`;
+  document.getElementById('slackstate').innerHTML = c.slack_configured
+    ? '<span class="badge online">Slack connected</span>' : '<span class="badge offline">Slack not configured</span>';
 
-  // 24 hourly buckets ending now
+  const home = p.home || [];
+  document.getElementById('home').innerHTML = home.map(h=>`
+    <div class="chip"><div class="n">${h.person?'🧑‍💻 ':''}${esc(h.person||h.name)}</div>
+    <div class="m">${esc(h.person?h.name:'')}${h.gateway?` · ${esc(h.gateway)}`:''}${h.duration?` · ${esc(h.duration)}`:''}</div></div>`).join('');
+  document.getElementById('home_empty').hidden = !!home.length;
+
+  const rowsEv = list => list.map(x=>`<tr><td class="num">${tt(x.ts)}</td><td>${evt(x.event)}</td><td style="white-space:normal">${esc(x.detail?.person||x.name||x.mac)}</td></tr>`).join('');
+  document.getElementById('arrivals').innerHTML = db.arrivals.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(db.arrivals) : '';
+  document.getElementById('arrivals_empty').hidden = !!db.arrivals.length;
+  document.getElementById('departures').innerHTML = db.departures.length ? '<tr><th>Time</th><th>Event</th><th>Who</th></tr>'+rowsEv(db.departures) : '';
+  document.getElementById('departures_empty').hidden = !!db.departures.length;
+
+  document.getElementById('polls').innerHTML = '<tr><th>Time</th><th>OK</th><th>ms</th><th>API ms</th><th>Dev</th><th>Ev</th></tr>' +
+    db.polls.map(x=>`<tr><td class="num">${tt(x.started_ts)}</td>
+      <td>${x.success?'<span style="color:var(--good)">✓</span>':`<span style="color:var(--critical)" title="${esc(x.error||'')}">✗</span>`}</td>
+      <td class="num">${x.duration_ms}</td><td class="num">${x.api_latency_ms??''}</td>
+      <td class="num">${x.device_count}</td><td class="num">${x.event_count}</td></tr>`).join('');
+
   const now = Math.floor(Date.now()/1000/3600)*3600;
-  const byHour = Object.fromEntries((s.events_per_hour||[]).map(r=>[r.hour, r.n]));
+  const byHour = Object.fromEntries((db.events_per_hour||[]).map(r=>[r.hour, r.n]));
   const buckets = Array.from({length:24}, (_,i)=>{ const h = now-(23-i)*3600; return {h, n: byHour[h]||0}; });
   const max = Math.max(1, ...buckets.map(b=>b.n));
   document.getElementById('chart').innerHTML = buckets.map(b=>
     `<div class="bar${b.n?'':' zero'}" style="height:${Math.max(4, b.n/max*100)}%" title="${new Date(b.h*1000).toLocaleTimeString([], {hour:'numeric'})}: ${b.n} event${b.n==1?'':'s'}"></div>`).join('');
   document.getElementById('ax0').textContent = new Date((now-23*3600)*1000).toLocaleTimeString([], {hour:'numeric'});
 
-  document.getElementById('alerts').innerHTML = a.length ? '<tr><th>Time</th><th>Severity</th><th>Alert</th></tr>' +
-    a.map(x=>`<tr><td class="num">${t(x.ts)}</td><td>${sev(x.severity)}</td><td style="white-space:normal">${esc(x.title)}</td></tr>`).join('') : '';
-  document.getElementById('alerts_empty').hidden = !!a.length;
+  document.getElementById('timeline').innerHTML = db.timeline.map(x=>`
+    <li><span class="t num">${tt(x.ts)}</span>${evt(x.event)}<span style="white-space:normal">${esc(x.detail?.title||x.name||x.mac)}</span></li>`).join('');
+  document.getElementById('timeline_empty').hidden = !!db.timeline.length;
 
-  document.getElementById('events').innerHTML = e.length ? '<tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th></tr>' +
-    e.map(x=>`<tr><td class="num">${t(x.ts)}</td><td>${esc(x.event)}</td><td>${esc(x.name||x.mac||'')}</td><td class="num">${esc(x.ip||'')}</td></tr>`).join('') : '';
-  document.getElementById('events_empty').hidden = !!e.length;
+  document.getElementById('alerts').innerHTML = db.alerts.length ? '<tr><th>Time</th><th>Severity</th><th>Alert</th></tr>' +
+    db.alerts.map(x=>`<tr><td class="num">${t(x.ts)}</td><td><span class="sev ${esc(x.severity)}">${SEV_ICON[x.severity]||'ℹ'} ${esc(x.severity)}</span></td><td style="white-space:normal">${esc(x.title)}</td></tr>`).join('') : '';
+  document.getElementById('alerts_empty').hidden = !!db.alerts.length;
 
-  document.getElementById('devices').innerHTML = '<tr><th>Status</th><th>Name</th><th>MAC</th><th>IP</th><th>Vendor</th><th>Profile</th><th>Watched</th><th>Last Seen</th></tr>' +
-    d.map(x=>`<tr>
+  document.getElementById('devices').innerHTML = '<tr><th>Status</th><th>Name</th><th>Person</th><th>MAC</th><th>IP</th><th>Gateway</th><th>RSSI</th><th>Manufacturer</th><th>Watched</th><th>Last Seen</th></tr>' +
+    devs.map(x=>`<tr>
       <td><span class="badge ${x.online?'online':'offline'}">${x.online?'online':'offline'}</span></td>
-      <td>${esc(x.name||'')}</td><td class="num">${esc(x.mac||'')}</td><td class="num">${esc(x.last_ip||'')}</td>
-      <td>${esc(x.vendor||'')}</td><td>${esc(x.profile||'')}</td>
+      <td>${esc(x.name||'')}</td>
+      <td>${x.person?`<span class="badge person">${esc(x.person)}</span>`:''}</td>
+      <td class="num">${esc(x.mac||'')}</td><td class="num">${esc(x.ip||x.last_ip||'')}</td>
+      <td>${esc(x.gateway||'')}</td><td class="num">${x.rssi??''}</td>
+      <td>${esc(x.manufacturer||x.vendor||'')}</td>
       <td>${x.watched?'<span class="badge watched">watched</span>':''}</td>
-      <td class="num">${esc(x.last_seen||'')}</td></tr>`).join('');
+      <td class="num">${/^\d+$/.test(String(x.last_seen))?t(+x.last_seen):esc(x.last_seen||'')}</td></tr>`).join('');
 }
 
-async function pollNow(){ toast('Polling eero…'); await j('/api/poll',{method:'POST'}); await refresh(); toast('Poll complete'); }
+async function pollNow(){ toast('Polling eero…'); const r = await j('/api/poll',{method:'POST'}); await refresh(); toast(`Poll complete — ${r.events} event${r.events==1?'':'s'}`); }
 async function testSlack(){
   toast('Sending test alert…');
   const r = await j('/api/notify/test',{method:'POST'});
@@ -164,7 +227,7 @@ function connectWS(){
   ws.onmessage = ()=>refresh();
   ws.onclose = ()=>{ dot.classList.remove('live'); txt.textContent='reconnecting…'; setTimeout(connectWS, 3000); };
 }
-refresh(); connectWS();
+refresh(); connectWS(); setInterval(refresh, 60000);
 </script>
 </body>
 </html>
