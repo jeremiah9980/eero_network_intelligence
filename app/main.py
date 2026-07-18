@@ -37,6 +37,10 @@ async def broadcast(msg):
 
 
 def load_cfg(path):
+    if not os.path.exists(path) and os.path.exists('config/config.example.yaml'):
+        log.error('config %s not found — falling back to config/config.example.yaml; '
+                  'run: cp config/config.example.yaml %s and edit it', path, path)
+        path = 'config/config.example.yaml'
     with open(path) as f:
         return yaml.safe_load(f)
 
@@ -99,7 +103,8 @@ def build_daily_summary():
 # ── pages ─────────────────────────────────────────────────────────────────
 @app.get('/')
 def home():
-    return FileResponse('web/index.html')
+    # no-store: browsers must not serve a stale dashboard after upgrades
+    return FileResponse('web/index.html', headers={'Cache-Control': 'no-store'})
 
 
 # ── presence & inventory ──────────────────────────────────────────────────
