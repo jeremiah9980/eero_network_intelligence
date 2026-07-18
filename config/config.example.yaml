@@ -2,15 +2,28 @@ auth_source: "your-eero-email-or-phone"
 session_file: "./data/eero_session.cookie"
 network_name: "Sf"
 
+# Adapter: "eero" polls the live eero cloud API; "fake" reads
+# data/fake_devices.json each poll (for demos/tests).
+adapter: eero
+
 # Poll eero cloud API every 5 minutes.
 poll_interval_seconds: 300
 
+# A device must miss this many consecutive polls before LEFT/OFFLINE fires.
+# Two misses prevents false departures from a single dropped poll.
+offline_confirmation_polls: 2
+
 database: "./data/eero_intel.db"
 dsarexport: "./data/personal_data.zip"
+
 web:
   host: "0.0.0.0"
   port: 8080
+
+websocket_enabled: true
+
 notifications:
+  slack_enabled: true
   # Preferred: export SLACK_WEBHOOK_URL (or put it in .env) — it is picked up
   # automatically and never has to be committed. You can also list webhook
   # URLs here, e.g. ["https://hooks.slack.com/services/XXX/YYY/ZZZ"].
@@ -18,7 +31,43 @@ notifications:
   pushcut_url: ""
   # Send a Slack alert whenever a never-before-seen device joins the network.
   notify_on_new_device: true
+  # Send a daily Block Kit summary at this local time (comment out to disable).
+  daily_summary_time: "20:00"
+
+# Home Assistant via MQTT discovery: device_tracker per person plus
+# sensor.people_home / sensor.active_devices.
+mqtt:
+  enabled: false
+  host: "localhost"
+  port: 1883
+  username: ""
+  password: ""
+  base_topic: "home/presence"
+  discovery_prefix: "homeassistant"
+
+# HomeKit occupancy sensors (one per person + "Family Home").
+# Requires: pip install "HAP-python[QRCode]"
+homekit:
+  enabled: false
+  port: 51826
+  persist_file: "./data/homekit.state"
+
+# Watched devices. Entries with `person:` are person devices — they emit
+# ARRIVED/LEFT, count toward People Home, and map to Home Assistant/HomeKit
+# entities. Entries without `person:` emit ONLINE/OFFLINE.
 devices:
+  - name: "Jere iPhone"
+    person: "Jeremiah"
+    match: { names: ["Jere iPhone"], macs: ["72:c0:e8:62:51:50"] }
+    notify: true
+  - name: "Cooper iPhone"
+    person: "Cooper"
+    match: { names: ["Cooper iPhone"], macs: ["a6:4c:c9:b6:9c:c0"] }
+    notify: true
+  - name: "Myles iPhone"
+    person: "Myles"
+    match: { names: ["Myles iPhone"], macs: ["e6:fc:70:8b:79:a1"] }
+    notify: true
   - name: "MyQ-408"
     match: { names: ["MyQ-408"] }
     notify: true
@@ -36,15 +85,6 @@ devices:
     notify: true
   - name: "Samsung"
     match: { names: ["Samsung"], macs: ["cc:6e:a4:90:14:5b"] }
-    notify: true
-  - name: "Jere iPhone"
-    match: { names: ["Jere iPhone"], macs: ["72:c0:e8:62:51:50"] }
-    notify: true
-  - name: "Cooper iPhone"
-    match: { names: ["Cooper iPhone"], macs: ["a6:4c:c9:b6:9c:c0"] }
-    notify: true
-  - name: "Myles iPhone"
-    match: { names: ["Myles iPhone"], macs: ["e6:fc:70:8b:79:a1"] }
     notify: true
   - name: "DESKTOP-UI1LV9VF"
     match: { names: ["DESKTOP-UI1LV9VF", "DESKTOP-U1LV9VF"], macs: ["58:6c:25:a5:6d:7e"] }
