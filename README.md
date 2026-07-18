@@ -100,6 +100,17 @@ WS   /ws                  # live updates
 - Structured logging (`LOG_LEVEL=DEBUG` for verbose)
 - Graceful shutdown of scheduler, MQTT, and HomeKit
 
+## Verify your deployment
+
+One command checks the whole chain — app health, Slack webhook delivery (sends a real test message), the Cloudflare tunnel, and the public dashboard:
+
+```bash
+./scripts/verify.sh                                  # local checks
+./scripts/verify.sh https://presence.yourdomain.com  # also check the public URL
+```
+
+Every line prints PASS/FAIL with the exact fix for anything failing.
+
 ## Docker
 
 ```bash
