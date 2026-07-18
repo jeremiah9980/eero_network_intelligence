@@ -1,0 +1,13 @@
+services:
+  eero-intel:
+    build: .
+    ports: ["8080:8080"]
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    command: python -m app.main --config config/config.yaml --run
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on: [eero-intel]
