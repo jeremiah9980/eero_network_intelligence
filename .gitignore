@@ -1,0 +1,21 @@
+# local config / secrets
+config/config.yaml
+.env
+*.cookie
+*.session
+
+# private exports / databases
+data/
+*.db
+*.sqlite
+*.sqlite3
+personal_data.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store

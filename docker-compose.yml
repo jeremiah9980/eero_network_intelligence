@@ -5,6 +5,8 @@ services:
     volumes:
       - ./config:/app/config
       - ./data:/app/data
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
     command: python -m app.main --config config/config.yaml --run
   cloudflared:
     image: cloudflare/cloudflared:latest
