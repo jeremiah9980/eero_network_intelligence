@@ -69,8 +69,9 @@ def record_poll(con, started, finished, latency_ms, success, error, device_count
     con.commit()
 
 def record_node_sample(con, ts, mac, gateway, rssi, change):
+    # No commit here — called per-device inside a poll; the engine commits once
+    # at the end of the batch.
     con.execute('INSERT INTO node_history(ts,mac,gateway,rssi,change) VALUES(?,?,?,?,?)', (ts, mac, gateway, rssi, change))
-    con.commit()
 
 def list_rows(con, table, limit=200):
     return [dict(r) for r in con.execute(f'SELECT * FROM {table} ORDER BY rowid DESC LIMIT ?', (limit,))]

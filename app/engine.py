@@ -123,7 +123,11 @@ class PresenceEngine:
 
             was_online = bool(prev.get('online'))
             if not was_online:
-                events.append(self._mk(up_ev, mac, name, person, d, now))
+                # On the very first poll pre-existing rows (v1 migration, DSAR
+                # import) all carry online=0 — seed their state silently instead
+                # of announcing an "arrival" for every connected device.
+                if not first_poll:
+                    events.append(self._mk(up_ev, mac, name, person, d, now))
                 self._write_device(mac, d, name, person, now, online=1, online_since=now, misses=0)
             else:
                 if prev.get('name') and name != prev['name']:
@@ -185,7 +189,6 @@ class PresenceEngine:
             f'INSERT INTO devices(mac,first_seen,{cols}) VALUES(?,?,{marks}) '
             f'ON CONFLICT(mac) DO UPDATE SET {sets}',
             (mac, first_seen, *base.values()))
-        self.con.commit()
 
     def _mk(self, type_, mac, name, person, d, now, is_new=False, extra=None):
         w = self.watched({'mac': mac, 'name': name})

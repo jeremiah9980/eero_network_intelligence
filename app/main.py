@@ -80,7 +80,7 @@ async def watchdog():
 
 
 async def daily_summary_job():
-    await asyncio.to_thread(notify_daily_summary, CFG, build_daily_summary())
+    return await asyncio.to_thread(notify_daily_summary, CFG, build_daily_summary())
 
 
 def build_daily_summary():
@@ -261,7 +261,8 @@ async def notify_test():
 @app.post('/api/notify/summary')
 async def notify_summary():
     results = await daily_summary_job()
-    return {'ok': True}
+    return {'ok': all(r.get('ok') for r in results) if results else False,
+            'configured': bool(webhook_urls(CFG)), 'results': results}
 
 
 @app.websocket('/ws')
@@ -290,9 +291,13 @@ async def startup_event():
             log.error('mqtt disabled error=%s', ex)
             MQTT = None
     if (CFG.get('homekit', {}) or {}).get('enabled'):
-        from .integrations.homekit import HomeKitBridge
-        hk = HomeKitBridge(CFG, ENGINE.persons())
-        HOMEKIT = hk if hk.start() else None
+        try:
+            from .integrations.homekit import HomeKitBridge
+            hk = HomeKitBridge(CFG, ENGINE.persons())
+            HOMEKIT = hk if hk.start() else None
+        except Exception as ex:
+            log.error('homekit disabled error=%s', ex)
+            HOMEKIT = None
 
     if SCHED is None:
         interval = CFG.get('poll_interval_seconds', 300)
@@ -302,8 +307,12 @@ async def startup_event():
         SCHED.add_job(watchdog, 'interval', seconds=max(60, interval), id='watchdog')
         t = (CFG.get('notifications', {}) or {}).get('daily_summary_time')
         if t and webhook_urls(CFG):
-            hour, minute = t.split(':')
-            SCHED.add_job(daily_summary_job, CronTrigger(hour=int(hour), minute=int(minute)), id='daily_summary')
+            try:
+                hour, minute = str(t).strip().split(':')
+                SCHED.add_job(daily_summary_job, CronTrigger(hour=int(hour), minute=int(minute)), id='daily_summary')
+            except (ValueError, TypeError):
+                log.error('invalid notifications.daily_summary_time=%r — expected "HH:MM"; daily summary disabled', t)
+                t = None
         SCHED.start()
         log.info('scheduler started interval=%ds summary=%s', interval, t or 'off')
         await scheduled_poll()
