@@ -19,6 +19,9 @@ dsarexport: "./data/personal_data.zip"
 web:
   host: "0.0.0.0"
   port: 8080
+  # Origins allowed to read the API cross-origin (GET only) — e.g. a static
+  # demo page on GitHub Pages. Empty list = no cross-origin access.
+  cors_origins: ["https://jc-eero.site"]
 
 websocket_enabled: true
 
