@@ -1,6 +1,8 @@
 auth_source: "your-eero-email-or-phone"
 session_file: "./data/eero_session.cookie"
-network_name: "Sf"
+# Only this network is polled (matched by name, case-insensitive). If it
+# doesn't match any network on the account, all networks are polled.
+network_name: "PrettyFlyForWifi"
 
 # Adapter: "eero" polls the live eero cloud API; "fake" reads
 # data/fake_devices.json each poll (for demos/tests).
