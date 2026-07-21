@@ -361,6 +361,8 @@ if __name__ == '__main__':
     p.add_argument('--import-dsar')
     p.add_argument('--login', action='store_true',
                    help='one-time eero cloud login: sends a verification code and stores the session')
+    p.add_argument('--set-session', metavar='TOKEN',
+                   help='install an eero session token captured from a logged-in my.eero.com browser session (Amazon SSO)')
     p.add_argument('--run', action='store_true')
     a = p.parse_args()
 
@@ -368,15 +370,33 @@ if __name__ == '__main__':
     CON = connect(CFG.get('database', './data/eero_intel.db'))
 
     if a.login:
+        from requests import HTTPError
         from .eero_api import EeroCloud
         cloud = EeroCloud(CFG)
         ident = CFG.get('auth_source')
         if not ident or 'your-eero' in str(ident):
             ident = input('eero account email or phone: ').strip()
         cloud.start_login(ident)
-        code = input(f'Verification code sent to {ident} — enter it: ')
-        cloud.verify(code)
-        print(f"Login verified — session saved to {CFG.get('session_file', './data/eero_session.cookie')}")
+        for attempt in range(1, 4):
+            code = input(f'Verification code sent to {ident} — enter it: ').strip()
+            if not code:
+                print('Empty code — try again.')
+                continue
+            try:
+                cloud.verify(code)
+                print(f"Login verified — session saved to {CFG.get('session_file', './data/eero_session.cookie')}")
+                break
+            except HTTPError:
+                print(f'Code rejected (wrong or expired) — attempt {attempt}/3. '
+                      'Only the NEWEST text message counts; codes from earlier attempts are dead.')
+        else:
+            raise SystemExit('Verification failed. Re-run --login for a fresh code, '
+                             'or install a browser-captured session with --set-session (see README).')
+
+    if a.set_session:
+        from .eero_api import EeroCloud
+        EeroCloud(CFG).install_token(a.set_session)
+        print(f"Session installed at {CFG.get('session_file', './data/eero_session.cookie')} — restart the app to start polling")
 
     if a.import_dsar:
         print(f'imported {import_dsar(a.import_dsar, CON)} rows')
