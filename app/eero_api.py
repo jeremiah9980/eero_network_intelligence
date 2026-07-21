@@ -69,6 +69,14 @@ class EeroCloud:
         acct = self._req('GET', '/account')
         out = []
         nets = ((acct.get('networks') or {}).get('data')) or []
+        want = (self.cfg.get('network_name') or '').strip().lower()
+        if want:
+            matched = [n for n in nets if (n.get('name') or '').strip().lower() == want]
+            if matched:
+                nets = matched
+            else:
+                log.warning('network_name %r not found on account (networks: %s) — polling all',
+                            self.cfg.get('network_name'), [n.get('name') for n in nets])
         for net in nets:
             url = net.get('url') or ''
             path = url[len('/2.2'):] if url.startswith('/2.2') else url
