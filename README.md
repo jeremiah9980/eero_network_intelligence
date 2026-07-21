@@ -46,6 +46,21 @@ Open http://localhost:8080
 
 Set `adapter: fake` in `config.yaml` and create `data/fake_devices.json` (a JSON array of devices with `mac`, `nickname`, `connected`, `ip`, `gateway`, `rssi`). Edit the file between polls to simulate arrivals/departures.
 
+## eero cloud login (one-time)
+
+Live polling talks to the eero cloud with your account. Authenticate once — a verification code is sent to your eero account email/phone and the session is stored in `data/eero_session.cookie` (auto-refreshed afterwards):
+
+```bash
+# bare metal
+python -m app.main --config config/config.yaml --login
+
+# docker
+docker compose run --rm eero-intel python -m app.main --config config/config.yaml --login
+docker compose up -d
+```
+
+Until you log in, polls report `degraded` and the dashboard runs on imported DSAR data only.
+
 ## Slack notifications
 
 Create a Slack **Incoming Webhook** and put it in `.env` (gitignored — never commit webhook URLs):

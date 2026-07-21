@@ -359,11 +359,24 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--config', default='config/config.example.yaml')
     p.add_argument('--import-dsar')
+    p.add_argument('--login', action='store_true',
+                   help='one-time eero cloud login: sends a verification code and stores the session')
     p.add_argument('--run', action='store_true')
     a = p.parse_args()
 
     CFG = load_cfg(a.config)
     CON = connect(CFG.get('database', './data/eero_intel.db'))
+
+    if a.login:
+        from .eero_api import EeroCloud
+        cloud = EeroCloud(CFG)
+        ident = CFG.get('auth_source')
+        if not ident or 'your-eero' in str(ident):
+            ident = input('eero account email or phone: ').strip()
+        cloud.start_login(ident)
+        code = input(f'Verification code sent to {ident} — enter it: ')
+        cloud.verify(code)
+        print(f"Login verified — session saved to {CFG.get('session_file', './data/eero_session.cookie')}")
 
     if a.import_dsar:
         print(f'imported {import_dsar(a.import_dsar, CON)} rows')
