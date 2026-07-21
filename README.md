@@ -61,6 +61,15 @@ docker compose up -d
 
 Until you log in, polls report `degraded` and the dashboard runs on imported DSAR data only.
 
+**Wrong code?** The login prompt now retries up to 3 times. Only the newest text message counts — every login attempt invalidates earlier codes.
+
+**Amazon-linked account (no SMS)?** If your eero account signs in through Amazon, you can reuse an authenticated browser session instead: log in at my.eero.com, open DevTools → Network, click any request to `api-user.e2ro.com`, and copy the value of the `s` cookie from the request Cookie header (it looks like `123456|abcdef...`). Then install it:
+
+```bash
+docker compose run --rm eero-intel python -m app.main --config config/config.yaml --set-session '123456|abcdef...'
+docker compose restart eero-intel
+```
+
 ## Slack notifications
 
 Create a Slack **Incoming Webhook** and put it in `.env` (gitignored — never commit webhook URLs):

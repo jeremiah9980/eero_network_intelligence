@@ -64,6 +64,11 @@ class EeroCloud:
                           cookies={'s': self._token() or ''}, timeout=15)
         r.raise_for_status()
 
+    def install_token(self, token):
+        """Install an externally captured session token (e.g. from a browser
+        session on my.eero.com that authenticated via Amazon)."""
+        self._save(token.strip())
+
     # ── data ──────────────────────────────────────────────────────────────
     def devices(self):
         acct = self._req('GET', '/account')
